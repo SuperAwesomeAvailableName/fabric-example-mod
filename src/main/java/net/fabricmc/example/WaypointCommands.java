@@ -1,5 +1,6 @@
 package net.fabricmc.example.waypoints;
 
+import net.fabricmc.example.waypoints.Util.Vec3d;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -22,9 +23,9 @@ public final class WaypointCommands {
                         String dim = p.getEntityWorld().getRegistryKey().getValue().toString();
                         var pos = p.getBlockPos();
                         String name = StringArgumentType.getString(ctx, "name");
-                        var wp = new WaypointStore.Waypoint(pos.getX(), pos.getY(), pos.getZ(), dim, name);
+                        var wp = new WaypointStore.Waypoint(Vec3d.fromBlockPos(pos), dim, name);
                         WaypointStore.set(p.getUuid(), name, wp);
-                        ctx.getSource().sendFeedback(() -> Text.literal("§aSaved waypoint §e" + name + " §7@ " + pos.getX()+","+pos.getY()+","+pos.getZ()+" §7in §e" + dim), false);
+                        ctx.getSource().sendFeedback(() -> Text.literal("§aSaved waypoint §e" + name + " §7@ " + String.format("%.2f,%.2f,%.2f", wp.pos().x, wp.pos().y, wp.pos().z) + " §7in §e" + dim), false);
                         return 1;
                     })
                 )
@@ -40,7 +41,7 @@ public final class WaypointCommands {
                             return 0;
                         }
                         ACTIVE.put(p.getUuid(), wp);
-                        ctx.getSource().sendFeedback(() -> Text.literal("§aTracking §e" + name + " §7(§f" + wp.x()+","+wp.y()+","+wp.z()+"§7)"), false);
+                        ctx.getSource().sendFeedback(() -> Text.literal("§aTracking §e" + name + " §7(§f" + String.format("%.2f,%.2f,%.2f", wp.pos().x, wp.pos().y, wp.pos().z) + "§7)"), false);
                         return 1;
                     })
                 )
@@ -56,7 +57,7 @@ public final class WaypointCommands {
                     ctx.getSource().sendFeedback(() -> Text.literal("§aWaypoints:"), false);
                     map.forEach((n, wp) ->
                         ctx.getSource().sendFeedback(() ->
-                            Text.literal(" - §e" + n + "§7 @ (" + wp.x()+","+wp.y()+","+wp.z()+") §7" + wp.dimension()), false)
+                            Text.literal(" - §e" + n + "§7 @ (" + String.format("%.2f,%.2f,%.2f", wp.pos().x, wp.pos().y, wp.pos().z) + ") §7" + wp.dimension()), false)
                     );
                     return 1;
                 })
@@ -72,14 +73,14 @@ public final class WaypointCommands {
                             return 0;
                         }
 
-                        String cmd = String.format("/wp track_from %d %d %d %s \"%s\"",
-                                wp.x(), wp.y(), wp.z(), wp.dimension(), name);
+                        String cmd = String.format("/wp track_from %.2f %.2f %.2f %s \"%s\"",
+                                wp.pos().x, wp.pos().y, wp.pos().z, wp.dimension(), name);
 
                         String json = String.format(
-                            "{\"text\":\"[Track '%s' at (%d, %d, %d)]\",\"color\":\"yellow\"," +
+                            "{\"text\":\"[Track '%s' at (%.2f, %.2f, %.2f)]\",\"color\":\"yellow\"," +
                             "\"clickEvent\":{\"action\":\"run_command\",\"value\":\"%s\"}," +
                             "\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"Click to track this waypoint\",\"color\":\"gray\"}}}",
-                            name, wp.x(), wp.y(), wp.z(), cmd.replace("\"","\\\"")
+                            name, wp.pos().x, wp.pos().y, wp.pos().z, cmd.replace("\"","\\\"")
                         );
 
                         ctx.getSource().getServer().getCommandManager()
@@ -94,21 +95,21 @@ public final class WaypointCommands {
 
 
             .then(CommandManager.literal("track_from")
-                .then(CommandManager.argument("x", IntegerArgumentType.integer())
-                    .then(CommandManager.argument("y", IntegerArgumentType.integer())
-                        .then(CommandManager.argument("z", IntegerArgumentType.integer())
+                .then(CommandManager.argument("x", StringArgumentType.string())
+                    .then(CommandManager.argument("y", StringArgumentType.string())
+                        .then(CommandManager.argument("z", StringArgumentType.string())
                             .then(CommandManager.argument("dimension", StringArgumentType.string())
                                 .then(CommandManager.argument("label", StringArgumentType.greedyString())
                                     .executes(ctx -> {
                                         ServerPlayerEntity p = ctx.getSource().getPlayerOrThrow();
-                                        int x = IntegerArgumentType.getInteger(ctx, "x");
-                                        int y = IntegerArgumentType.getInteger(ctx, "y");
-                                        int z = IntegerArgumentType.getInteger(ctx, "z");
+                                        double x = Double.parseDouble(StringArgumentType.getString(ctx, "x"));
+                                        double y = Double.parseDouble(StringArgumentType.getString(ctx, "y"));
+                                        double z = Double.parseDouble(StringArgumentType.getString(ctx, "z"));
                                         String dim = StringArgumentType.getString(ctx, "dimension");
                                         String label = StringArgumentType.getString(ctx, "label").replace("\"", "");
-                                        var wp = new WaypointStore.Waypoint(x, y, z, dim, label);
+                                        var wp = new WaypointStore.Waypoint(new Vec3d(x, y, z), dim, label);
                                         ACTIVE.put(p.getUuid(), wp);
-                                        ctx.getSource().sendFeedback(() -> Text.literal("§aTracking §e" + label + " §7(" + x+","+y+","+z+")"), false);
+                                        ctx.getSource().sendFeedback(() -> Text.literal("§aTracking §e" + label + " §7(" + String.format("%.2f,%.2f,%.2f", x, y, z) + ")"), false);
                                         return 1;
                                     })
                                 )
@@ -127,4 +128,3 @@ public final class WaypointCommands {
             )
         );
     }
-}

@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.math.BlockPos;
+import net.fabricmc.example.waypoints.Util.Vec3d;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -25,8 +25,8 @@ public final class WaypointStore {
     public static final Map<UUID, Map<String, Waypoint>> WAYPOINTS = new HashMap<>();
     public static final Map<UUID, Waypoint> ACTIVE = new HashMap<>();
 
-    public record Waypoint(int x, int y, int z, String dimension, String name) {
-        public BlockPos pos() { return new BlockPos(x, y, z); }
+    public record Waypoint(Vec3d position, String dimension, String name) {
+        public Vec3d pos() { return position; }
     }
 
     private WaypointStore() {}
@@ -67,6 +67,12 @@ public final class WaypointStore {
                 Map<String, Waypoint> m = GSON.fromJson(r, MAP_TYPE);
                 return (m != null) ? m : new HashMap<>();
             } catch (IOException ignored) {}
+        } catch (Exception e) {
+            // Log the error
+            System.err.println("Error loading waypoints for UUID: " + uuid);
+            e.printStackTrace();
+            // Return an empty map if there's an error
+            return new HashMap<>();
         }
         return new HashMap<>();
     }
@@ -75,6 +81,9 @@ public final class WaypointStore {
         Path p = BASE_DIR.resolve(uuid + ".json");
         try (Writer w = Files.newBufferedWriter(p)) {
             GSON.toJson(WAYPOINTS.getOrDefault(uuid, Map.of()), w);
-        } catch (IOException ignored) {}
+        } catch (IOException e) {
+            // Log the error
+            System.err.println("Error saving waypoints for UUID: " + uuid);
+            e.printStackTrace();
+        }
     }
-}
